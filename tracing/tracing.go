@@ -96,7 +96,11 @@ func (p otelPlugin) Initialize(db *gorm.DB) (err error) {
 
 func (p *otelPlugin) before(spanName string) gormHookFunc {
 	return func(tx *gorm.DB) {
-		tx.Statement.Context, _ = p.tracer.Start(tx.Statement.Context, spanName, trace.WithSpanKind(trace.SpanKindClient))
+		tracer := p.tracer
+		if span := trace.SpanFromContext(tx.Statement.Context); span.SpanContext().IsValid() {
+			tracer = span.TracerProvider().Tracer("gorm.io/plugin/opentelemetry")
+		}
+		tx.Statement.Context, _ = tracer.Start(tx.Statement.Context, spanName, trace.WithSpanKind(trace.SpanKindClient))
 	}
 }
 
